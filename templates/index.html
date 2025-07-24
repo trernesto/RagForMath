@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Система обработки документов</h1>
+        
+        <!-- Секция загрузки файлов -->
+        <div class="section">
+            <h2>Загрузка документов</h2>
+            <input type="file" id="fileInput" accept=".pdf">
+            <button onclick="uploadFile()">Загрузить PDF</button>
+            <div id="uploadStatus"></div>
+            <div id="fileList"></div>
+        </div>
+        
+        <!-- Секция суммаризации -->
+        <div class="section">
+            <h2>Суммаризация документа</h2>
+            <div id="summaryContainer">
+                <button onclick="summarizeDocument()">Суммаризировать</button>
+                <div id="summaryResult"></div>
+            </div>
+        </div>
+        
+        <!-- Секция вопрос-ответ -->
+        <div class="section">
+            <h2>Задайте вопрос</h2>
+            <input type="text" id="questionInput" placeholder="Введите ваш вопрос...">
+            <button onclick="askQuestion()">Задать вопрос</button>
+            <div id="answerResult"></div>
+        </div>
+    </div>
+
+    <script>
+        // Текущий документ
+        let currentDocId = null;
+        
+        // Загрузка файла
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Выберите файл');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('uploadStatus').innerHTML = `
+                        <p>Файл "${data.filename}" успешно загружен!</p>
+                    `;
+                    
+                    // Обновляем список файлов
+                    document.getElementById('fileList').innerHTML = `
+                        <p>Текущий документ: ${data.filename}</p>
+                    `;
+                    
+                    // Сохраняем ID документа
+                    currentDocId = data.doc_id;
+                } else {
+                    document.getElementById('uploadStatus').innerHTML = `
+                        <p class="error">Ошибка: ${data.error}</p>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('uploadStatus').innerHTML = `
+                    <p class="error">Ошибка сети: ${error.message}</p>
+                `;
+            }
+        }
+        
+        // Суммаризация документа
+        async function summarizeDocument() {
+            if (!currentDocId) {
+                alert('Сначала загрузите документ');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/summarize/${currentDocId}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('summaryResult').innerHTML = `
+                        <div class="result-box">
+                            <h3>Краткое содержание:</h3>
+                            <p>${data.summary}</p>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('summaryResult').innerHTML = `
+                        <p class="error">Ошибка: ${data.error}</p>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('summaryResult').innerHTML = `
+                    <p class="error">Ошибка сети: ${error.message}</p>
+                `;
+            }
+        }
+        
+        // Задать вопрос
+        async function askQuestion() {
+            if (!currentDocId) {
+                alert('Сначала загрузите документ');
+                return;
+            }
+            
+            const question = document.getElementById('questionInput').value;
+            if (!question) {
+                alert('Введите вопрос');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        question: question,
+                        doc_id: currentDocId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('answerResult').innerHTML = `
+                        <div class="result-box">
+                            <h3>Вопрос:</h3>
+                            <p>${question}</p>
+                            <h3>Ответ:</h3>
+                            <p>${data.answer}</p>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('answerResult').innerHTML = `
+                        <p class="error">Ошибка: ${data.error}</p>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('answerResult').innerHTML = `
+                    <p class="error">Ошибка сети: ${error.message}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
