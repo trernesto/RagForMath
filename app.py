@@ -3,7 +3,7 @@ import os
 
 from services.file_processor import PDFProccessor
 from services.summarizer import Summarizer
-from services.rag import ask_question
+from services.rag import RAG
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = './uploads'
@@ -13,6 +13,7 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 processor = PDFProccessor()
 summarizer = Summarizer()
+rag = RAG()
 
 @app.route('/')
 def home():
@@ -58,13 +59,13 @@ def summarize():
 def ask():
     data = request.json
     question = data.get('question')
-    doc_id = data.get('doc_id')
+    doc_ids = data.get('doc_ids')
     
     if not question:
         return jsonify({"error": "No question provided"}), 400
     
     try:
-        answer = ask_question(question, doc_id)
+        answer = rag.ask_question(question, processor.vector_store, doc_ids)
         return jsonify({"answer": answer})
     except Exception as e:
         return jsonify({"error": str(e)}), 500

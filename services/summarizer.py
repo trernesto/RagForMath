@@ -11,7 +11,8 @@ class Summarizer():
         self.tokenizer = AutoTokenizer.from_pretrained(READER_MODEL_NAME)
         
 
-    def generate_summary(self, doc_ids: list, vector_store: FAISS, max_length=150):
+    def generate_summary(self, doc_ids: list, vector_store: FAISS, max_length=600):
+        print("Started generation of summarization")
         if vector_store is None:
             raise Exception("Документ не загружен")
         
@@ -20,7 +21,7 @@ class Summarizer():
 
         input_ids = self.tokenizer(
                 [context],
-                max_length=4_800,
+                max_length=max_length,
                 add_special_tokens=True,
                 padding="max_length",
                 truncation=True,
