@@ -1,16 +1,18 @@
 from flask import Flask, render_template, request, jsonify, send_from_directory
 import os
 
-from services.file_processor import process_pdf
-from services.summarizer import generate_summary
+from services.file_processor import PDFProccessor
+from services.summarizer import Summarizer
 from services.rag import ask_question
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = './uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
 
-# Создаем папку для загрузок
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+processor = PDFProccessor()
+summarizer = Summarizer()
 
 @app.route('/')
 def home():
@@ -30,33 +32,30 @@ def upload_file():
         return jsonify({"error": "Invalid file type"}), 400
     
     try:
-        # Сохраняем файл
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
         file.save(file_path)
         
-        # Обрабатываем PDF
-        doc_id = process_pdf(file_path)
+        doc_ids = processor.process_pdf(file_path)
         
         return jsonify({
             "status": "success",
             "filename": file.filename,
-            "doc_id": doc_id
+            "doc_ids": doc_ids
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/summarize/<doc_id>', methods=['GET'])
-def summarize(doc_id):
-    """Суммаризация документа"""
+@app.route('/summarize', methods=['POST'])
+def summarize():
     try:
-        summary = generate_summary(doc_id)
+        doc_ids = request.form.get('doc_ids')
+        summary = summarizer.generate_summary(doc_ids, processor.vector_store)
         return jsonify({"summary": summary})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/ask', methods=['POST'])
 def ask():
-    """Ответ на вопрос по документам"""
     data = request.json
     question = data.get('question')
     doc_id = data.get('doc_id')
@@ -72,7 +71,6 @@ def ask():
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
-    """Доступ к загруженным файлам"""
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 if __name__ == '__main__':

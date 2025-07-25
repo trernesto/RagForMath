@@ -73,7 +73,7 @@
                     `;
                     
                     // Сохраняем ID документа
-                    currentDocId = data.doc_id;
+                    currentDocId = data.doc_ids;
                 } else {
                     document.getElementById('uploadStatus').innerHTML = `
                         <p class="error">Ошибка: ${data.error}</p>
@@ -94,7 +94,12 @@
             }
             
             try {
-                const response = await fetch(`/summarize/${currentDocId}`);
+                const formDataIds = new FormData();
+                formDataIds.append('doc_ids', currentDocId);
+                const response = await fetch('/summarize', {
+                    method: 'POST',
+                    body: formDataIds
+                });
                 const data = await response.json();
                 
                 if (response.ok) {
